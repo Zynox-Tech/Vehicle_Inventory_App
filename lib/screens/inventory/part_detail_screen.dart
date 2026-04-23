@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../models/part.dart';
 import '../../services/cart_service.dart';
-import '../checkout/checkout_screen.dart';
 
 class PartDetailScreen extends StatefulWidget {
   final Part part;
@@ -32,15 +31,17 @@ class _PartDetailScreenState extends State<PartDetailScreen> {
   Future<void> _buyNow() async {
     if (widget.part.quantity <= 0) return;
     
-    // Calculate total for this single item
+    // Add item to cart temporarily for checkout
+    await _cart.add(widget.part.id, qty: _qty);
+    
+    // Calculate total for this item
     final total = widget.part.price * _qty;
     
     // Navigate to payment method screen with total
     if (!mounted) return;
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => PaymentMethodScreen(total: total),
-      ),
+    Navigator.of(context).pushNamed(
+      '/payment-method',
+      arguments: total,
     );
   }
 

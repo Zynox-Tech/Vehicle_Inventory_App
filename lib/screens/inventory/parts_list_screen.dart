@@ -413,36 +413,6 @@ class _PartsListScreenState extends State<PartsListScreen> {
               },
             ),
           ),
-          if (isCustomerView)
-            SafeArea(
-              child: Container(
-                padding: const EdgeInsets.all(12),
-                child: ElevatedButton.icon(
-                  onPressed: () async {
-                    // Use CartService items
-                    if (_cartService.isEmpty) return;
-                    final items = _cartService.items.entries.toList();
-                    final partsSnap = await FirebaseFirestore.instance.collection('parts').get();
-                    final partsAll = partsSnap.docs.map((d) => Part.fromDoc(d)).toList();
-                    final orderItems = items.map((e) {
-                      final p = partsAll.firstWhere((pp) => pp.id == e.key);
-                      return {'partId': p.id, 'name': p.name, 'price': p.price, 'qty': e.value};
-                    }).toList();
-                    final total = orderItems.fold<double>(0.0, (acc, m) => acc + (m['price'] as double) * (m['qty'] as int));
-                    await FirebaseFirestore.instance.collection('orders').add({
-                      'items': orderItems,
-                      'total': total,
-                      'status': 'pending',
-                      'createdAt': FieldValue.serverTimestamp(),
-                    });
-                    await _cartService.clear();
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Order confirmed')));
-                  },
-                  icon: const Icon(Icons.check),
-                  label: const Text('Confirm Order'),
-                ),
-              ),
-            ),
         ],
       ),
     );

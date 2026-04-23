@@ -504,10 +504,9 @@ class OrderSuccessScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
-        child: Padding(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               // Success Icon
@@ -615,7 +614,7 @@ class OrderSuccessScreen extends StatelessWidget {
                   ],
                 ),
               ),
-              const Spacer(),
+              const SizedBox(height: 32),
 
               // Action Buttons
               Column(
