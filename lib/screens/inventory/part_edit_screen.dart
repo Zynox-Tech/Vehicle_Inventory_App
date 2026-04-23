@@ -66,7 +66,7 @@ class _PartEditScreenState extends State<PartEditScreen> {
   print('[Upload] Starting upload for part id=$id path=$path');
         _imageUrl = await SupabaseService.uploadImage(
           bytes: _pickedBytes!,
-          bucket: 'parts',
+          bucket: 'parts-photos',
           path: path,
           contentType: 'image/jpeg',
         );

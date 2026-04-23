@@ -12,6 +12,7 @@ import 'screens/delivery/delivery_list_screen.dart';
 import 'screens/home_router.dart';
 import 'screens/orders/my_orders_screen.dart';
 import 'screens/cart/cart_screen.dart';
+import 'screens/checkout/checkout_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -65,6 +66,19 @@ class MainApp extends StatelessWidget {
                   DeliveryListScreen.routeName: (_) => const DeliveryListScreen(),
                   MyOrdersScreen.routeName: (_) => const MyOrdersScreen(),
                   CartScreen.routeName: (_) => const CartScreen(),
+                  '/payment-method': (context) => PaymentMethodScreen(
+                    total: ModalRoute.of(context)!.settings.arguments as double? ?? 0.0,
+                  ),
+                  '/checkout': (context) => const CheckoutScreen(),
+                  OrderSuccessScreen.routeName: (context) {
+                    final args = ModalRoute.of(context)!.settings.arguments
+                        as Map<String, dynamic>?;
+                    return OrderSuccessScreen(
+                      orderId: args?['orderId'] ?? '',
+                      total: args?['total'] ?? 0.0,
+                      paymentMethod: args?['paymentMethod'],
+                    );
+                  },
                 },
               );
             },
@@ -79,8 +93,8 @@ class MainApp extends StatelessWidget {
 Future<void> _initializeServices() async {
   await Firebase.initializeApp(); // Ensure platform configs (google-services/GoogleService-Info.plist) exist.
   // Hardcoded Supabase configuration provided by user.
-  const supabaseUrl = 'https://yzpkpxpcxduvcuqmfqlx.supabase.co';
-  const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl6cGtweHBjeGR1dmN1cW1mcWx4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUwNjM1NjIsImV4cCI6MjA4MDYzOTU2Mn0.Xy8HlKtEq-vq6AP1Hi5KOemWoacX6wgXSN0ne348WZs';
+  const supabaseUrl = 'https://djzxpkuyaoohlcfeqxhe.supabase.co';
+  const supabaseAnonKey = 'sb_publishable_Vap_7U7vKeWy4E_YIcWm4A_NWLiokJ5';
   await SupabaseService.init(url: supabaseUrl, anonKey: supabaseAnonKey);
 }
 

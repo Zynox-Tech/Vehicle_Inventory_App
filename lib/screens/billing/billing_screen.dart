@@ -1,6 +1,10 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import '../../models/part.dart';
+import '../../models/order.dart';
+import '../../services/order_service.dart';
+import '../payment/payment_method_screen.dart';
+import '../payment/invoice_screen.dart';
 import 'qr_scanner_screen.dart';
 
 class BillingScreen extends StatefulWidget {
@@ -34,29 +38,90 @@ class _BillingScreenState extends State<BillingScreen> {
 
   Future<void> _checkout() async {
     if (_cart.isEmpty) return;
-    final col = FirebaseFirestore.instance.collection('sales');
-    final batch = FirebaseFirestore.instance.batch();
-    final saleRef = col.doc();
-    final items = _cart.values.map((m) => {
-      'partId': (m['part'] as Part).id,
-      'name': (m['part'] as Part).name,
-      'price': (m['part'] as Part).price,
-      'qty': m['qty'] as int,
-    }).toList();
-    batch.set(saleRef, {
-      'items': items,
-      'total': total,
-      'createdAt': FieldValue.serverTimestamp(),
-    });
-    // decrement stock
-    for (final m in _cart.values) {
-      final p = m['part'] as Part;
-      final q = m['qty'] as int;
-      final ref = FirebaseFirestore.instance.collection('parts').doc(p.id);
-      batch.update(ref, {'quantity': p.quantity - q});
+
+    // Navigate to payment method selection
+    final paymentMethod = await Navigator.push<PaymentMethod>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => PaymentMethodSelectionScreen(
+          totalAmount: total,
+          onPaymentMethodSelected: (_) {},
+        ),
+      ),
+    );
+
+    if (paymentMethod == null) return;
+
+    if (context.mounted) {
+      // Show loading
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(child: CircularProgressIndicator()),
+      );
+
+      try {
+        // Create order items
+        final orderItems = <OrderItem>[];
+        for (final m in _cart.values) {
+          final p = m['part'] as Part;
+          final q = m['qty'] as int;
+          orderItems.add(
+            OrderItem(
+              partId: p.id,
+              name: p.name,
+              price: p.price,
+              quantity: q,
+            ),
+          );
+        }
+
+        // Create order
+        final orderService = OrderService();
+        final orderId = await orderService.createOrder(
+          items: orderItems,
+          total: total,
+          paymentMethod: paymentMethod,
+          customerName: 'Staff Sale',
+          notes: 'Order from billing (staff)',
+        );
+
+        // Update stock
+        final batch = FirebaseFirestore.instance.batch();
+        for (final m in _cart.values) {
+          final p = m['part'] as Part;
+          final q = m['qty'] as int;
+          final ref = FirebaseFirestore.instance.collection('parts').doc(p.id);
+          batch.update(ref, {'quantity': p.quantity - q});
+        }
+        await batch.commit();
+
+        setState(() { _cart.clear(); });
+
+        // Close loading dialog
+        if (context.mounted) {
+          Navigator.pop(context);
+
+          // Show invoice
+          final invoice = await orderService.getInvoice(orderId);
+          if (invoice != null && context.mounted) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (context) => InvoiceScreen(invoice: invoice),
+              ),
+            );
+          }
+        }
+      } catch (e) {
+        if (context.mounted) {
+          Navigator.pop(context); // Close loading dialog
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error creating order: $e')),
+          );
+        }
+      }
     }
-    await batch.commit();
-    setState(() { _cart.clear(); });
   }
 
   @override

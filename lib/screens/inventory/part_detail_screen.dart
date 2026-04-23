@@ -1,7 +1,7 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import '../../models/part.dart';
 import '../../services/cart_service.dart';
+import '../checkout/checkout_screen.dart';
 
 class PartDetailScreen extends StatefulWidget {
   final Part part;
@@ -31,27 +31,17 @@ class _PartDetailScreenState extends State<PartDetailScreen> {
 
   Future<void> _buyNow() async {
     if (widget.part.quantity <= 0) return;
-    try {
-      final total = widget.part.price * _qty;
-      await FirebaseFirestore.instance.collection('orders').add({
-        'items': [
-          {
-            'partId': widget.part.id,
-            'name': widget.part.name,
-            'price': widget.part.price,
-            'qty': _qty,
-          }
-        ],
-        'total': total,
-        'status': 'pending',
-        'createdAt': FieldValue.serverTimestamp(),
-      });
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Order placed')));
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed: $e')));
-    }
+    
+    // Calculate total for this single item
+    final total = widget.part.price * _qty;
+    
+    // Navigate to payment method screen with total
+    if (!mounted) return;
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => PaymentMethodScreen(total: total),
+      ),
+    );
   }
 
   @override
@@ -170,6 +160,9 @@ class _PartDetailScreenState extends State<PartDetailScreen> {
                 children: [
                   Expanded(
                     child: ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.grey[700],
+                      ),
                       onPressed: p.quantity > 0 ? _addToCart : null,
                       icon: const Icon(Icons.add_shopping_cart),
                       label: const Text('Add to Cart'),
@@ -178,6 +171,9 @@ class _PartDetailScreenState extends State<PartDetailScreen> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.orange,
+                      ),
                       onPressed: p.quantity > 0 ? _buyNow : null,
                       icon: const Icon(Icons.flash_on),
                       label: const Text('Buy Now'),

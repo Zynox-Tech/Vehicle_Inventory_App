@@ -88,64 +88,100 @@ class _CartItemTile extends StatelessWidget {
         return Card(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           child: Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Row(
+            padding: const EdgeInsets.all(12.0),
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (imageUrl != null)
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: Image.network(imageUrl, width: 56, height: 56, fit: BoxFit.cover),
-                  )
-                else
-                  const Icon(Icons.settings, size: 40),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Title + Price in one row
-                      Row(
+                // Image + Title + Price Row
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (imageUrl != null)
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Image.network(imageUrl, width: 56, height: 56, fit: BoxFit.cover),
+                      )
+                    else
+                      const Icon(Icons.settings, size: 56),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Expanded(
-                            child: Text(
-                              title,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                          Text(
+                            title,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
+                          const SizedBox(height: 4),
                           Text(
                             'Rs ${price.toStringAsFixed(2)}',
-                            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.orange,
+                            ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 8),
-                      // Quantity controls on separate row
-                      Row(
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                // Quantity + Actions Row
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    // Quantity controls (compact)
+                    Container(
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.white24),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          IconButton(
-                            tooltip: 'Decrease',
-                            icon: const Icon(Icons.remove_circle_outline),
-                            onPressed: () => cart.setQuantity(partId, qty - 1),
+                          InkWell(
+                            onTap: qty > 1 ? () => cart.setQuantity(partId, qty - 1) : null,
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              child: Icon(
+                                Icons.remove,
+                                size: 16,
+                                color: qty > 1 ? Colors.white : Colors.white38,
+                              ),
+                            ),
                           ),
-                          Text('$qty', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
-                          IconButton(
-                            tooltip: 'Increase',
-                            icon: const Icon(Icons.add_circle_outline),
-                            onPressed: () => cart.setQuantity(partId, qty + 1),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                            child: Text(
+                              '$qty',
+                              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                            ),
                           ),
-                          const Spacer(),
-                          IconButton(
-                            tooltip: 'Remove',
-                            icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
-                            onPressed: () => cart.remove(partId),
+                          InkWell(
+                            onTap: () => cart.setQuantity(partId, qty + 1),
+                            child: const Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              child: Icon(Icons.add, size: 16),
+                            ),
                           ),
                         ],
                       ),
-                    ],
-                  ),
+                    ),
+                    // Remove button
+                    IconButton(
+                      tooltip: 'Remove',
+                      icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 20),
+                      onPressed: () => cart.remove(partId),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -184,30 +220,48 @@ class _CartFooter extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text('Total', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                  Text('Rs ${total.toStringAsFixed(2)}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                ],
+              // Total Row
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.grey[900],
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.white24),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Total:',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Text(
+                      'Rs ${total.toStringAsFixed(2)}',
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.orange,
+                      ),
+                    ),
+                  ],
+                ),
               ),
               const SizedBox(height: 12),
               ElevatedButton.icon(
                 icon: const Icon(Icons.shopping_bag),
-                label: const Text('Checkout'),
-                onPressed: () async {
-                  // Placeholder: create an order similar to billing screen
-                  final items = entries.map((e) => {'id': e.key, 'qty': e.value}).toList();
-                  await FirebaseFirestore.instance.collection('orders').add({
-                    'items': items,
-                    'createdAt': FieldValue.serverTimestamp(),
-                    'status': 'pending',
-                    'source': 'customer-cart',
-                  });
-                  await cart.clear();
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Order placed')));
-                  }
+                label: const Text('Buy Now'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.orange,
+                ),
+                onPressed: () {
+                  // Navigate to payment method screen
+                  Navigator.of(context).pushNamed(
+                    '/payment-method',
+                    arguments: total,
+                  );
                 },
               )
             ],
