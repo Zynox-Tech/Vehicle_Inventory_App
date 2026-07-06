@@ -53,8 +53,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
               padding: const EdgeInsets.only(top: 12.0, bottom: 24.0),
               child: Column(
                 children: [
-                  Icon(Icons.build_circle_outlined, size: 48, color: theme.colorScheme.primary),
-                  const SizedBox(height: 10),
+                  Image.asset(
+                    'assets/splash.png',
+                    height: 200,
+                    width: 200,
+                    fit: BoxFit.contain,
+                  ),
+                  const SizedBox(height: 5),
                   Text(
                     appName,
                     textAlign: TextAlign.center,
@@ -97,12 +102,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       ),
                       const Text('Customer'),
                       const SizedBox(width: 12),
-                      Radio<String>(
-                        value: 'staff',
-                        groupValue: _role,
-                        onChanged: (v) => setState(() => _role = v ?? 'customer'),
-                      ),
-                      const Text('Staff'),
+                      // Radio<String>(
+                      //   value: 'staff',
+                      //   groupValue: _role,
+                      //   onChanged: (v) => setState(() => _role = v ?? 'customer'),
+                      // ),
+                      // const Text('Staff'),
                     ],
                   ),
                   const SizedBox(height: 24),

@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../models/order.dart' as order_models;
+import '../../services/auth_service.dart';
+import '../../services/delivery_tracking_service.dart';
 import '../../services/order_service.dart';
+import 'delivery_tracking_screen.dart';
 
 class DeliveryListScreen extends StatelessWidget {
   static const routeName = '/deliveries';
@@ -92,6 +96,38 @@ class _DeliveryOrderCardState extends State<_DeliveryOrderCard> {
     _selectedStatus = widget.order.status;
   }
 
+  @override
+  void didUpdateWidget(covariant _DeliveryOrderCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.order.status != oldWidget.order.status) {
+      _selectedStatus = widget.order.status;
+    }
+  }
+
+  List<order_models.OrderStatus> _allowedStatusTransitions() {
+    switch (widget.order.status) {
+      case order_models.OrderStatus.pending:
+        return [
+          order_models.OrderStatus.pending,
+          order_models.OrderStatus.confirmed,
+          order_models.OrderStatus.cancelled,
+        ];
+      case order_models.OrderStatus.confirmed:
+        return [
+          order_models.OrderStatus.confirmed,
+          order_models.OrderStatus.dispatched,
+          order_models.OrderStatus.cancelled,
+        ];
+      case order_models.OrderStatus.dispatched:
+        return [
+          order_models.OrderStatus.dispatched,
+          order_models.OrderStatus.delivered,
+        ];
+      default:
+        return [widget.order.status];
+    }
+  }
+
   Future<void> _updateStatus(order_models.OrderStatus newStatus) async {
     setState(() => _isUpdating = true);
 
@@ -120,6 +156,58 @@ class _DeliveryOrderCardState extends State<_DeliveryOrderCard> {
       }
     } finally {
       if (mounted) setState(() => _isUpdating = false);
+    }
+  }
+
+  Future<void> _startDelivery() async {
+    setState(() => _isUpdating = true);
+    try {
+      final auth = context.read<AuthService>();
+      await DeliveryTrackingService.instance.startDelivery(
+        order: widget.order,
+        staffId: auth.user!.uid,
+        staffLabel: auth.user?.email ?? 'Staff member',
+      );
+      if (!mounted) {
+        return;
+      }
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => DeliveryTrackingScreen(orderId: widget.order.id),
+        ),
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Unable to start delivery: $e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isUpdating = false);
+      }
+    }
+  }
+
+  Future<void> _markDelivered() async {
+    setState(() => _isUpdating = true);
+    try {
+      await DeliveryTrackingService.instance.markDelivered(widget.order);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Delivery completed')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Unable to mark delivered: $e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isUpdating = false);
+      }
     }
   }
 
@@ -211,7 +299,7 @@ class _DeliveryOrderCardState extends State<_DeliveryOrderCard> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
-                    color: statusColor.withOpacity(0.2),
+                    color: statusColor.withAlpha((0.2 * 255).round()),
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(color: statusColor, width: 1),
                   ),
@@ -236,6 +324,44 @@ class _DeliveryOrderCardState extends State<_DeliveryOrderCard> {
             const SizedBox(height: 12),
             const Divider(color: Colors.white24),
             const SizedBox(height: 12),
+
+            if (widget.order.status == order_models.OrderStatus.confirmed)
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: _isUpdating ? null : _startDelivery,
+                  icon: const Icon(Icons.play_arrow),
+                  label: const Text('Start Delivery'),
+                ),
+              ),
+            if (widget.order.status == order_models.OrderStatus.dispatched) ...[
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: _isUpdating ? null : _markDelivered,
+                  icon: const Icon(Icons.done_all),
+                  label: const Text('Delivered'),
+                ),
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: _isUpdating
+                      ? null
+                      : () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => DeliveryTrackingScreen(orderId: widget.order.id),
+                            ),
+                          );
+                        },
+                  icon: const Icon(Icons.map),
+                  label: const Text('Live Tracking'),
+                ),
+              ),
+              const SizedBox(height: 8),
+            ],
 
             // Customer Details
             _buildDetailRow('Customer', widget.order.customerName ?? 'N/A'),
@@ -296,29 +422,22 @@ class _DeliveryOrderCardState extends State<_DeliveryOrderCard> {
                   underline: const SizedBox(),
                   style: const TextStyle(color: Colors.white),
                   dropdownColor: Colors.grey[800],
-                  items: const [
-                    DropdownMenuItem(
-                      value: order_models.OrderStatus.pending,
-                      child: Text('Pending'),
-                    ),
-                    DropdownMenuItem(
-                      value: order_models.OrderStatus.confirmed,
-                      child: Text('Confirmed'),
-                    ),
-                    DropdownMenuItem(
-                      value: order_models.OrderStatus.dispatched,
-                      child: Text('Out for Delivery'),
-                    ),
-                    DropdownMenuItem(
-                      value: order_models.OrderStatus.delivered,
-                      child: Text('Delivered'),
-                    ),
-                    DropdownMenuItem(
-                      value: order_models.OrderStatus.cancelled,
-                      child: Text('Cancelled'),
-                    ),
-                  ],
-                  onChanged: _isUpdating
+                  items: _allowedStatusTransitions().map((status) {
+                    final label = status == order_models.OrderStatus.pending
+                        ? 'Pending'
+                        : status == order_models.OrderStatus.confirmed
+                            ? 'Confirmed'
+                            : status == order_models.OrderStatus.dispatched
+                                ? 'Out for Delivery'
+                                : status == order_models.OrderStatus.delivered
+                                    ? 'Delivered'
+                                    : 'Cancelled';
+                    return DropdownMenuItem(
+                      value: status,
+                      child: Text(label),
+                    );
+                  }).toList(),
+                  onChanged: _isUpdating || _allowedStatusTransitions().length <= 1
                       ? null
                       : (value) {
                           if (value != null && value != _selectedStatus) {

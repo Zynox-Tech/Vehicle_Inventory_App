@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:pdf/pdf.dart';
+import 'package:printing/printing.dart';
 import 'package:qr_flutter/qr_flutter.dart';
-import 'package:share_plus/share_plus.dart';
+
+import '../../services/pdf_service.dart';
 
 class QrLabelScreen extends StatefulWidget {
   final String partId;
@@ -104,38 +107,52 @@ class _QrLabelScreenState extends State<QrLabelScreen> {
     );
   }
 
-  void _downloadQrLabel() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('QR Label ready for download'),
-        action: SnackBarAction(
-          label: 'Use Print',
-          onPressed: _printQrLabel,
-        ),
-        duration: const Duration(seconds: 4),
-      ),
-    );
+  Future<void> _downloadQrLabel() async {
+    try {
+      final bytes = await PdfService.generateQrLabelPdf(widget.partId, widget.name);
+      await Printing.layoutPdf(
+        onLayout: (PdfPageFormat format) async => bytes,
+        name: 'qr_label_${widget.partId}.pdf',
+      );
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Unable to create QR label PDF: $error')),
+        );
+      }
+    }
   }
 
-  void _printQrLabel() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Press Ctrl+P or use Print option from your browser to save as PDF'),
-        duration: Duration(seconds: 3),
-      ),
-    );
+  Future<void> _printQrLabel() async {
+    try {
+      final bytes = await PdfService.generateQrLabelPdf(widget.partId, widget.name);
+      await Printing.layoutPdf(
+        onLayout: (PdfPageFormat format) async => bytes,
+        name: 'qr_label_${widget.partId}.pdf',
+      );
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Unable to print QR label PDF: $error')),
+        );
+      }
+    }
   }
 
-  void _shareQrLabel() {
-    final text = '''
-QR Label for ${widget.name}
-
-Part ID: ${widget.partId}
-
-Scan this QR code on the Billing screen to add this part to cart.
-    ''';
-
-    Share.share(text, subject: 'QR Label - ${widget.name}');
+  Future<void> _shareQrLabel() async {
+    try {
+      final bytes = await PdfService.generateQrLabelPdf(widget.partId, widget.name);
+      await Printing.sharePdf(
+        bytes: bytes,
+        filename: 'qr_label_${widget.partId}.pdf',
+      );
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Unable to share QR label PDF: $error')),
+        );
+      }
+    }
   }
 }
 

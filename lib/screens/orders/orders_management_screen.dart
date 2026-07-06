@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../models/order.dart';
+import '../../services/auth_service.dart';
+import '../../services/delivery_tracking_service.dart';
 import '../../services/order_service.dart';
 import '../payment/invoice_screen.dart';
 
@@ -99,7 +102,8 @@ class _OrdersManagementScreenState extends State<OrdersManagementScreen> {
       child: InkWell(
         onTap: () async {
           final invoice = await orderService.getInvoice(order.id);
-          if (invoice != null && context.mounted) {
+          if (invoice != null && mounted && context.mounted) {
+            if (!context.mounted) return;
             Navigator.push(
               context,
               MaterialPageRoute(
@@ -142,7 +146,7 @@ class _OrdersManagementScreenState extends State<OrdersManagementScreen> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
-                      color: statusColor.withOpacity(0.2),
+                      color: statusColor.withAlpha((0.2 * 255).round()),
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(color: statusColor),
                     ),
@@ -163,7 +167,7 @@ class _OrdersManagementScreenState extends State<OrdersManagementScreen> {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: Colors.grey.withOpacity(0.1),
+                  color: Colors.grey.withAlpha((0.1 * 255).round()),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Column(
@@ -197,6 +201,38 @@ class _OrdersManagementScreenState extends State<OrdersManagementScreen> {
               ),
               const SizedBox(height: 12),
 
+              if (order.status == OrderStatus.confirmed || order.status == OrderStatus.dispatched)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      icon: const Icon(Icons.play_arrow),
+                      label: const Text('Start Delivery'),
+                      onPressed: () async {
+                        final messenger = ScaffoldMessenger.of(context);
+                        final auth = context.read<AuthService>();
+                        try {
+                          await DeliveryTrackingService.instance.startDelivery(
+                            order: order,
+                            staffId: auth.user!.uid,
+                            staffLabel: auth.user?.email ?? 'Staff member',
+                          );
+                          if (!context.mounted) return;
+                          messenger.showSnackBar(
+                            const SnackBar(content: Text('Delivery started successfully')),
+                          );
+                        } catch (e) {
+                          if (!context.mounted) return;
+                          messenger.showSnackBar(
+                            SnackBar(content: Text('Unable to start delivery: $e')),
+                          );
+                        }
+                      },
+                    ),
+                  ),
+                ),
+
               // Footer row
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -222,15 +258,20 @@ class _OrdersManagementScreenState extends State<OrdersManagementScreen> {
                     ],
                   ),
                   PopupMenuButton<String>(
-                    onSelected: (value) {
+                    onSelected: (value) async {
                       if (value == 'confirm' && order.status == OrderStatus.pending) {
-                        orderService.updateOrderStatus(order.id, OrderStatus.confirmed);
+                        await orderService.updateOrderStatus(order.id, OrderStatus.confirmed);
                       } else if (value == 'dispatch' && order.status == OrderStatus.confirmed) {
-                        orderService.updateOrderStatus(order.id, OrderStatus.dispatched);
+                        final auth = context.read<AuthService>();
+                        await DeliveryTrackingService.instance.startDelivery(
+                          order: order,
+                          staffId: auth.user!.uid,
+                          staffLabel: auth.user?.email ?? 'Staff member',
+                        );
                       } else if (value == 'deliver' && order.status == OrderStatus.dispatched) {
-                        orderService.updateOrderStatus(order.id, OrderStatus.delivered);
+                        await DeliveryTrackingService.instance.markDelivered(order);
                       } else if (value == 'cancel') {
-                        orderService.cancelOrder(order.id);
+                        await orderService.cancelOrder(order.id);
                       }
                     },
                     itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
@@ -242,7 +283,7 @@ class _OrdersManagementScreenState extends State<OrdersManagementScreen> {
                       if (order.status == OrderStatus.confirmed)
                         const PopupMenuItem<String>(
                           value: 'dispatch',
-                          child: Text('Mark as Dispatched'),
+                          child: Text('Start Delivery'),
                         ),
                       if (order.status == OrderStatus.dispatched)
                         const PopupMenuItem<String>(

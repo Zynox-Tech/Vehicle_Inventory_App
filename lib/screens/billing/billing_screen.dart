@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import '../../models/part.dart';
 import '../../models/order.dart';
 import '../../services/order_service.dart';
-import '../payment/payment_method_screen.dart';
 import '../payment/invoice_screen.dart';
 import 'qr_scanner_screen.dart';
 
@@ -39,19 +38,6 @@ class _BillingScreenState extends State<BillingScreen> {
   Future<void> _checkout() async {
     if (_cart.isEmpty) return;
 
-    // Navigate to payment method selection
-    final paymentMethod = await Navigator.push<PaymentMethod>(
-      context,
-      MaterialPageRoute(
-        builder: (context) => PaymentMethodSelectionScreen(
-          totalAmount: total,
-          onPaymentMethodSelected: (_) {},
-        ),
-      ),
-    );
-
-    if (paymentMethod == null) return;
-
     if (context.mounted) {
       // Show loading
       showDialog(
@@ -76,12 +62,12 @@ class _BillingScreenState extends State<BillingScreen> {
           );
         }
 
-        // Create order
+        // Create order with default payment method
         final orderService = OrderService();
         final orderId = await orderService.createOrder(
           items: orderItems,
           total: total,
-          paymentMethod: paymentMethod,
+          paymentMethod: PaymentMethod.cashOnDelivery,
           customerName: 'Staff Sale',
           notes: 'Order from billing (staff)',
         );
@@ -102,7 +88,7 @@ class _BillingScreenState extends State<BillingScreen> {
         if (context.mounted) {
           Navigator.pop(context);
 
-          // Show invoice
+          // Show invoice directly
           final invoice = await orderService.getInvoice(orderId);
           if (invoice != null && context.mounted) {
             Navigator.pushReplacement(

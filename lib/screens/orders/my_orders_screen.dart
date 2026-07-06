@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../services/auth_service.dart';
 import '../../services/order_service.dart';
 import '../../models/order.dart' as order_models;
+import '../delivery/delivery_tracking_screen.dart';
 
 class MyOrdersScreen extends StatelessWidget {
   static const routeName = '/my-orders';
@@ -307,6 +308,25 @@ class _OrderCard extends StatelessWidget {
               ],
             ),
 
+            if (order.status == order_models.OrderStatus.dispatched) ...[
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => DeliveryTrackingScreen(orderId: order.id),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.track_changes),
+                  label: const Text('Track Delivery'),
+                ),
+              ),
+            ],
+
             // Delivery Address (if available)
             if (order.customerAddress != null && order.customerAddress!.isNotEmpty) ...[
               const SizedBox(height: 12),
@@ -587,7 +607,7 @@ class OrderDetailsScreen extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             label,
@@ -596,12 +616,15 @@ class OrderDetailsScreen extends StatelessWidget {
               color: Colors.white70,
             ),
           ),
-          Text(
-            value,
-            style: const TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: Colors.white,
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: Colors.white,
+              ),
             ),
           ),
         ],

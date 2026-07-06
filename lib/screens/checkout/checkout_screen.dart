@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:geocoding/geocoding.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 import '../../services/cart_service.dart';
 import '../../services/order_service.dart';
 import '../../services/auth_service.dart';
 import '../../services/paymob_service.dart';
+import '../../services/notification_service.dart';
 import '../../models/order.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -214,6 +219,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   late TextEditingController _phoneController;
   late TextEditingController _addressController;
   late TextEditingController _notesController;
+  LatLng? _currentLocation;
+  LatLng? _selectedLocation;
+  bool _locationLoading = true;
+  String? _locationError;
+  String? _selectedAddress;
   bool _isLoading = false;
   late double _total;
   late PaymentMethod _paymentMethod;
@@ -226,6 +236,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     _phoneController = TextEditingController();
     _addressController = TextEditingController();
     _notesController = TextEditingController();
+    _loadCurrentLocation();
   }
 
   @override
@@ -297,6 +308,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         customerName: _nameController.text,
         customerPhone: _phoneController.text,
         customerAddress: _addressController.text,
+        customerLatitude: _selectedLocation?.latitude,
+        customerLongitude: _selectedLocation?.longitude,
         notes: _notesController.text,
         userId: auth.user!.uid,
       );
@@ -324,6 +337,70 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     }
   }
 
+  Future<void> _loadCurrentLocation() async {
+    try {
+      final position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.best);
+      final location = LatLng(position.latitude, position.longitude);
+      final address = await _addressFromLatLng(location);
+      if (!mounted) return;
+      setState(() {
+        _currentLocation = location;
+        _selectedLocation ??= location;
+        _locationLoading = false;
+        _locationError = null;
+        if (_addressController.text.isEmpty) {
+          _selectedAddress = address;
+          _addressController.text = address;
+        }
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _locationLoading = false;
+        _locationError = e.toString();
+      });
+    }
+  }
+
+  Future<String> _addressFromLatLng(LatLng location) async {
+    try {
+      final placemarks = await placemarkFromCoordinates(location.latitude, location.longitude);
+      if (placemarks.isEmpty) {
+        return '${location.latitude.toStringAsFixed(5)}, ${location.longitude.toStringAsFixed(5)}';
+      }
+      final placemark = placemarks.first;
+      final parts = <String>[];
+      if (placemark.street?.trim().isNotEmpty ?? false) parts.add(placemark.street!);
+      if (placemark.locality?.trim().isNotEmpty ?? false) parts.add(placemark.locality!);
+      if (placemark.administrativeArea?.trim().isNotEmpty ?? false) parts.add(placemark.administrativeArea!);
+      if (placemark.country?.trim().isNotEmpty ?? false) parts.add(placemark.country!);
+      return parts.isNotEmpty ? parts.join(', ') : '${location.latitude.toStringAsFixed(5)}, ${location.longitude.toStringAsFixed(5)}';
+    } catch (_) {
+      return '${location.latitude.toStringAsFixed(5)}, ${location.longitude.toStringAsFixed(5)}';
+    }
+  }
+
+  Future<void> _openAddressPicker() async {
+    final initial = _selectedLocation ?? _currentLocation;
+    final result = await Navigator.of(context).push<Map<String, dynamic>>(
+      MaterialPageRoute(
+        builder: (context) => AddressMapPickerScreen(
+          initialLocation: initial,
+          initialAddress: _addressController.text,
+        ),
+      ),
+    );
+
+    if (result == null || !mounted) return;
+    setState(() {
+      _selectedLocation = result['location'] as LatLng?;
+      _selectedAddress = result['address'] as String?;
+      if (_selectedAddress != null) {
+        _addressController.text = _selectedAddress!;
+      }
+    });
+  }
+
   Future<void> _processOnlinePayment() async {
     try {
       final paymobService = PaymobService();
@@ -335,6 +412,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       );
 
       if (response != null && paymobService.isPaymentSuccessful(response)) {
+        await NotificationService.instance.notifyPaymentSuccessful(
+          referenceId: response.transactionID ?? DateTime.now().microsecondsSinceEpoch.toString(),
+          amount: _total,
+        );
         // Payment successful - now create the order
         await _createOrderAfterPayment(response.transactionID ?? '');
       } else {
@@ -399,6 +480,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         customerName: _nameController.text,
         customerPhone: _phoneController.text,
         customerAddress: _addressController.text,
+        customerLatitude: _selectedLocation?.latitude,
+        customerLongitude: _selectedLocation?.longitude,
         notes: _notesController.text,
         userId: auth.user!.uid,
       );
@@ -408,7 +491,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           .collection('orders')
           .doc(orderId)
           .update({
-        'transactionId': transactionId,
+        'paymentTransactionId': transactionId,
         'paymentStatus': 'completed',
       });
 
@@ -538,20 +621,31 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 keyboardType: TextInputType.phone,
                 validator: (v) => v?.isEmpty ?? true ? 'Phone required' : null,
               ),
-              const SizedBox(height: 12),
+                      const SizedBox(height: 12),
 
               TextFormField(
                 controller: _addressController,
+                readOnly: true,
+                onTap: _openAddressPicker,
                 decoration: InputDecoration(
                   labelText: 'Delivery Address',
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
                   ),
                   prefixIcon: const Icon(Icons.location_on),
+                  suffixIcon: IconButton(
+                    icon: const Icon(Icons.map),
+                    onPressed: _openAddressPicker,
+                  ),
                 ),
                 maxLines: 3,
                 validator: (v) => v?.isEmpty ?? true ? 'Address required' : null,
               ),
+              const SizedBox(height: 8),
+              if (_locationLoading)
+                const Text('Detecting your current location...', style: TextStyle(color: Colors.white70))
+              else if (_locationError != null)
+                Text('Location error: $_locationError', style: const TextStyle(color: Colors.redAccent)),
               const SizedBox(height: 12),
 
               TextFormField(
@@ -781,7 +875,150 @@ class OrderSuccessScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildDetailRow(
+}
+
+class AddressMapPickerScreen extends StatefulWidget {
+  final LatLng? initialLocation;
+  final String initialAddress;
+
+  const AddressMapPickerScreen({required this.initialLocation, required this.initialAddress, super.key});
+
+  @override
+  State<AddressMapPickerScreen> createState() => _AddressMapPickerScreenState();
+}
+
+class _AddressMapPickerScreenState extends State<AddressMapPickerScreen> {
+  late LatLng _selectedLocation;
+  String? _address;
+  bool _updatingAddress = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedLocation = widget.initialLocation ?? const LatLng(24.8607, 67.0011);
+    _address = widget.initialAddress.isNotEmpty ? widget.initialAddress : null;
+    if (_address == null) {
+      _updateAddress(_selectedLocation);
+    }
+  }
+
+  Future<void> _updateAddress(LatLng location) async {
+    setState(() {
+      _updatingAddress = true;
+    });
+    final address = await _reverseGeocode(location);
+    if (!mounted) return;
+    setState(() {
+      _address = address;
+      _updatingAddress = false;
+    });
+  }
+
+  Future<String> _reverseGeocode(LatLng location) async {
+    try {
+      final placemarks = await placemarkFromCoordinates(location.latitude, location.longitude);
+      if (placemarks.isEmpty) {
+        return '${location.latitude.toStringAsFixed(5)}, ${location.longitude.toStringAsFixed(5)}';
+      }
+      final placemark = placemarks.first;
+      final parts = <String>[];
+      if (placemark.street?.trim().isNotEmpty ?? false) parts.add(placemark.street!);
+      if (placemark.locality?.trim().isNotEmpty ?? false) parts.add(placemark.locality!);
+      if (placemark.administrativeArea?.trim().isNotEmpty ?? false) parts.add(placemark.administrativeArea!);
+      if (placemark.country?.trim().isNotEmpty ?? false) parts.add(placemark.country!);
+      return parts.isNotEmpty ? parts.join(', ') : '${location.latitude.toStringAsFixed(5)}, ${location.longitude.toStringAsFixed(5)}';
+    } catch (_) {
+      return '${location.latitude.toStringAsFixed(5)}, ${location.longitude.toStringAsFixed(5)}';
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Select Delivery Location')),
+      body: Column(
+        children: [
+          Expanded(
+            child: FlutterMap(
+              options: MapOptions(
+                initialCenter: _selectedLocation,
+                initialZoom: 15,
+                onTap: (tapPosition, point) async {
+                  setState(() {
+                    _selectedLocation = point;
+                  });
+                  await _updateAddress(point);
+                },
+              ),
+              children: [
+                TileLayer(
+                  urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                  userAgentPackageName: 'com.example.parts',
+                ),
+                MarkerLayer(
+                  markers: [
+                    Marker(
+                      point: _selectedLocation,
+                      width: 60,
+                      height: 60,
+                      child: const Icon(Icons.location_pin, color: Colors.redAccent, size: 40),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.grey[900],
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Selected address', style: TextStyle(color: Colors.white70)),
+                const SizedBox(height: 8),
+                Text(
+                  _address ?? 'Tap on the map to choose a location',
+                  style: const TextStyle(color: Colors.white),
+                ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: _updatingAddress
+                        ? null
+                        : () {
+                            Navigator.of(context).pop({
+                              'location': _selectedLocation,
+                              'address': _address ?? '',
+                            });
+                          },
+                    child: _updatingAddress
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                            ),
+                          )
+                        : const Text('Use this location'),
+                  ),
+                ),
+                const SizedBox(height: 8),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+Widget _buildDetailRow(
     String label,
     String value, {
     bool isAmount = false,
@@ -811,4 +1048,4 @@ class OrderSuccessScreen extends StatelessWidget {
       ),
     );
   }
-}
+

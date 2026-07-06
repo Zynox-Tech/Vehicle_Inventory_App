@@ -16,6 +16,9 @@ class OrderService {
     String? customerName,
     String? customerPhone,
     String? customerAddress,
+    double? customerLatitude,
+    double? customerLongitude,
+    DateTime? expectedDeliveryAt,
     String? notes,
   }) async {
     try {
@@ -29,9 +32,12 @@ class OrderService {
         paymentMethod: paymentMethod,
         status: OrderStatus.pending,
         createdAt: DateTime.now(),
+        expectedDeliveryAt: expectedDeliveryAt,
         customerName: customerName,
         customerPhone: customerPhone,
         customerAddress: customerAddress,
+        customerLatitude: customerLatitude,
+        customerLongitude: customerLongitude,
         notes: notes,
       );
 
@@ -162,21 +168,70 @@ class OrderService {
   /// Update order status
   Future<void> updateOrderStatus(String orderId, OrderStatus newStatus) async {
     try {
-      final updateData = <String, dynamic>{
-        'status': newStatus.toString().split('.').last,
-      };
+      final orderRef = _firestore.collection(_ordersCollection).doc(orderId);
 
-      // Add status-specific timestamps
-      if (newStatus == OrderStatus.dispatched) {
-        updateData['dispatchedAt'] = FieldValue.serverTimestamp();
-      } else if (newStatus == OrderStatus.delivered) {
-        updateData['deliveredAt'] = FieldValue.serverTimestamp();
-      }
+      await _firestore.runTransaction((transaction) async {
+        final orderSnapshot = await transaction.get(orderRef);
+        if (!orderSnapshot.exists) {
+          throw Exception('Order not found');
+        }
 
-      await _firestore.collection(_ordersCollection).doc(orderId).update(updateData);
+        final currentOrder = Order.fromDoc(orderSnapshot);
+        final currentStatus = currentOrder.status;
+
+        // Only decrement inventory once when transitioning to confirmed.
+        if (newStatus == OrderStatus.confirmed && currentStatus != OrderStatus.confirmed) {
+          for (final item in currentOrder.items) {
+            final partRef = _firestore.collection('parts').doc(item.partId);
+            final partSnapshot = await transaction.get(partRef);
+            if (!partSnapshot.exists) {
+              throw Exception('Part ${item.partId} not found');
+            }
+
+            final partQuantity = (partSnapshot.data()?['quantity'] ?? 0) as int;
+            if (partQuantity < item.quantity) {
+              throw Exception('Insufficient stock for part ${item.partId}');
+            }
+
+            transaction.update(partRef, {
+              'quantity': FieldValue.increment(-item.quantity),
+            });
+          }
+
+          transaction.update(orderRef, {
+            'status': newStatus.toString().split('.').last,
+            'confirmedAt': FieldValue.serverTimestamp(),
+          });
+        } else {
+          final updateData = <String, dynamic>{
+            'status': newStatus.toString().split('.').last,
+          };
+
+          if (newStatus == OrderStatus.dispatched) {
+            updateData['dispatchedAt'] = FieldValue.serverTimestamp();
+          } else if (newStatus == OrderStatus.delivered) {
+            updateData['deliveredAt'] = FieldValue.serverTimestamp();
+          }
+
+          if (newStatus == OrderStatus.confirmed) {
+            updateData['confirmedAt'] = FieldValue.serverTimestamp();
+          }
+
+          transaction.update(orderRef, updateData);
+        }
+      });
     } catch (e) {
       throw Exception('Failed to update order status: $e');
     }
+  }
+
+  Stream<Order?> watchOrder(String orderId) {
+    return _firestore.collection(_ordersCollection).doc(orderId).snapshots().map((doc) {
+      if (!doc.exists) {
+        return null;
+      }
+      return Order.fromDoc(doc);
+    });
   }
 
   /// Update order with payment transaction ID

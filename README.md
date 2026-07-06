@@ -2,7 +2,7 @@
 
 Dark theme (black/orange/white) app for vehicle parts management.
 
-Features: Authentication (staff & customer), inventory CRUD, search/filtering, low-stock alerts, QR scanning & billing, simple sales reports, delivery status tracking.
+Features: Authentication (staff & customer), inventory CRUD, search/filtering, low-stock alerts, QR scanning & billing, delivery status tracking, and live map-based delivery tracking.
 
 ## 1. Prerequisites
 * Flutter SDK 3.x
@@ -15,7 +15,8 @@ Features: Authentication (staff & customer), inventory CRUD, search/filtering, l
 3. Download `google-services.json` and copy to `android/app/`.
 4. Enable Email/Password in Authentication.
 5. Create Firestore (Production mode).
-6. (Optional) Add initial collections: `users`, `parts`, `sales`, `orders`.
+6. Enable Google Maps SDK for Android in Google Cloud Console and replace the placeholder in `android/app/src/main/res/values/google_maps_api.xml`.
+7. (Optional) Add initial collections: `users`, `parts`, `sales`, `orders`, `delivery_sessions`.
 
 Security rules (basic dev example):
 ```
@@ -33,6 +34,9 @@ service cloud.firestore {
 			allow read, write: if request.auth != null;
 		}
 		match /orders/{id} {
+			allow read, write: if request.auth != null;
+		}
+		match /delivery_sessions/{orderId} {
 			allow read, write: if request.auth != null;
 		}
 	}
@@ -55,7 +59,8 @@ flutter run
 3. Anyone: View parts list; low stock shows a red warning icon.
 4. Billing: Scan QR (uses part document ID); confirm cart & checkout.
 5. Reports: View sales totals (today/week/month).
-6. Delivery: Update order status.
+6. Delivery: Staff confirms an order, starts delivery, and shares live GPS while the app is open.
+7. Customer: Open My Orders or Track Delivery to see live staff movement, distance, ETA, and status updates.
 
 ## 6. Part Images
 Add `imageUrl` with HTTPS link in part doc. Future improvement: integrate Firebase Storage upload (create a storage bucket, use `firebase_storage` plugin, upload file, store download URL).
@@ -64,7 +69,8 @@ Add `imageUrl` with HTTPS link in part doc. Future improvement: integrate Fireba
 ```
 parts/{partId} => { name, category, price, quantity, lowStockThreshold, imageUrl?, qrData }
 sales/{saleId} => { partIds:[], total, createdAt }
-orders/{orderId} => { status, createdAt, items? }
+orders/{orderId} => { status, createdAt, confirmedAt?, dispatchedAt?, deliveredAt?, deliverySessionId?, items? }
+delivery_sessions/{orderId} => { orderId, customerId, staffId, staffLabel, customerAddress, destinationLatitude, destinationLongitude, staffLatitude, staffLongitude, distanceMeters, etaMinutes, isActive, status, startedAt, lastUpdatedAt, completedAt? }
 users/{uid} => { email, role, createdAt }
 ```
 
@@ -74,6 +80,7 @@ users/{uid} => { email, role, createdAt }
 * Role-based admin dashboard
 * Offline caching
 * AI-based stock prediction
+* Background delivery tracking if you later add a backend or foreground Android service
 
 ## 9. Troubleshooting
 If Firebase init fails: ensure `google-services.json` exists and run `flutter clean; flutter pub get`.

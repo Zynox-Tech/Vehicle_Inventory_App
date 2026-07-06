@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 class AppTheme {
   // Colors
   static const Color darkBg = Color(0xFF0D0D0D); // near black
-  static const Color darkSurface = Color(0xFF1A1A1A);
+  static const Color darkSurface = Color.fromRGBO(26, 26, 26, 1);
   static const Color accentOrange = Color(0xFFFF7A00);
   static const Color accentOrangeDark = Color(0xFFCC6300);
   static const Color textWhite = Colors.white;

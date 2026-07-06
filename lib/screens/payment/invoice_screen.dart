@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:pdf/pdf.dart';
+import 'package:printing/printing.dart';
+
 import '../../models/invoice.dart';
 import '../../models/order.dart';
-import 'package:share_plus/share_plus.dart';
+import '../../services/pdf_service.dart';
 
 class InvoiceScreen extends StatefulWidget {
   final Invoice invoice;
@@ -90,10 +93,6 @@ class _InvoiceScreenState extends State<InvoiceScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildDetailRow('Status:', order.status.toString().split('.').last.toUpperCase()),
-                    const SizedBox(height: 8),
-                    _buildDetailRow('Payment:', invoice.getPaymentMethodText()),
-                    const SizedBox(height: 8),
                     if (order.dispatchedAt != null)
                       _buildDetailRow('Dispatched:', invoice.getFormattedDate(order.dispatchedAt!)),
                   ],
@@ -372,7 +371,6 @@ class _InvoiceScreenState extends State<InvoiceScreen> {
           ),
         ),
         const SizedBox(height: 16),
-        _buildStatusBadge(invoice),
       ],
     );
   }
@@ -401,41 +399,6 @@ class _InvoiceScreenState extends State<InvoiceScreen> {
     );
   }
 
-  Widget _buildStatusBadge(Invoice invoice) {
-    final status = invoice.getStatusBadge();
-    Color badgeColor;
-
-    switch (invoice.order.status) {
-      case OrderStatus.pending:
-        badgeColor = Colors.orange;
-      case OrderStatus.confirmed:
-        badgeColor = Colors.blue;
-      case OrderStatus.dispatched:
-        badgeColor = Colors.purple;
-      case OrderStatus.delivered:
-        badgeColor = Colors.green;
-      case OrderStatus.cancelled:
-        badgeColor = Colors.red;
-    }
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: BoxDecoration(
-        color: badgeColor.withOpacity(0.2),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: badgeColor),
-      ),
-      child: Text(
-        'Status: $status',
-        style: TextStyle(
-          fontWeight: FontWeight.bold,
-          color: badgeColor,
-          fontSize: 12,
-        ),
-      ),
-    );
-  }
-
   Widget _buildActionButtons(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -452,43 +415,35 @@ class _InvoiceScreenState extends State<InvoiceScreen> {
     );
   }
 
-  void _shareInvoice() {
-    final invoice = widget.invoice;
-    final order = invoice.order;
-    
-    final invoiceText = '''
-INVOICE
-${invoice.companyName ?? 'Parts Inventory'}
-
-Invoice #: ${invoice.invoiceNumber}
-Order ID: ${order.id.substring(0, 12)}
-Date: ${invoice.getFormattedDate(order.createdAt)}
-
-BILL TO:
-${order.customerName ?? 'N/A'}
-${order.customerPhone ?? 'N/A'}
-${order.customerAddress ?? 'N/A'}
-
-ITEMS:
-${order.items.map((item) => '${item.name} x${item.quantity} - Rs ${item.subtotal.toStringAsFixed(2)}').join('\n')}
-
-SUBTOTAL: Rs ${invoice.subtotal.toStringAsFixed(2)}
-TAX: Rs ${invoice.tax.toStringAsFixed(2)}
-TOTAL: Rs ${invoice.total.toStringAsFixed(2)}
-
-Payment Method: ${invoice.getPaymentMethodText()}
-Status: ${invoice.getStatusBadge()}
-    ''';
-
-    Share.share(invoiceText, subject: 'Invoice #${invoice.invoiceNumber}');
+  Future<void> _shareInvoice() async {
+    try {
+      final bytes = await PdfService.generateInvoicePdf(widget.invoice);
+      await Printing.sharePdf(
+        bytes: bytes,
+        filename: 'invoice_${widget.invoice.invoiceNumber}.pdf',
+      );
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Unable to share invoice PDF: $error')),
+        );
+      }
+    }
   }
 
-  void _downloadPDF() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Print/Save functionality - Use your device\'s print menu (Ctrl+P or share option)'),
-        duration: Duration(seconds: 3),
-      ),
-    );
+  Future<void> _downloadPDF() async {
+    try {
+      final bytes = await PdfService.generateInvoicePdf(widget.invoice);
+      await Printing.layoutPdf(
+        onLayout: (PdfPageFormat format) async => bytes,
+        name: 'invoice_${widget.invoice.invoiceNumber}.pdf',
+      );
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Unable to generate invoice PDF: $error')),
+        );
+      }
+    }
   }
 }

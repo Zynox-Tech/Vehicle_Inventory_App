@@ -1,0 +1,71 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function getUserRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+
+    function isStaff() {
+      return isSignedIn() && getUserRole() == 'staff';
+    }
+
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    match /users/{uid} {
+      allow read: if isOwner(uid);
+      allow create: if isSignedIn() && uid == request.auth.uid;
+      allow update: if isOwner(uid);
+      allow delete: if false;
+    }
+
+    match /parts/{partId} {
+      allow read: if true;
+      allow create, update, delete: if isStaff();
+    }
+
+    match /sales/{saleId} {
+      allow read: if isStaff();
+      allow create, update, delete: if isStaff();
+    }
+
+    match /orders/{orderId} {
+      allow create: if isSignedIn() && (
+        request.resource.data.userId == request.auth.uid || request.resource.data.userId == null
+      );
+
+      allow read: if isStaff() || (isSignedIn() && resource.data.userId == request.auth.uid);
+
+      allow update: if isStaff() || (
+        isSignedIn() &&
+        resource.data.userId == request.auth.uid &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['paymentTransactionId', 'paymentStatus'])
+      );
+
+      allow delete: if isStaff();
+    }
+
+    match /invoices/{invoiceId} {
+      allow create: if isSignedIn() && (
+        isStaff() || request.resource.data.order.userId == request.auth.uid
+      );
+
+      allow read: if isStaff() || (isSignedIn() && resource.data.order.userId == request.auth.uid);
+      allow update: if isStaff();
+      allow delete: if isStaff();
+    }
+
+    match /delivery_sessions/{orderId} {
+      allow create: if isStaff();
+      allow read: if isStaff() || (isSignedIn() && resource.data.customerId == request.auth.uid);
+      allow update: if isStaff() || (isSignedIn() && resource.data.customerId == request.auth.uid);
+      allow delete: if isStaff();
+    }
+  }
+}

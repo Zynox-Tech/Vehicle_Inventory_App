@@ -46,11 +46,16 @@ class Order {
   final PaymentMethod paymentMethod;
   final OrderStatus status;
   final DateTime createdAt;
+  final DateTime? confirmedAt;
   final DateTime? dispatchedAt;
   final DateTime? deliveredAt;
+  final DateTime? expectedDeliveryAt;
+  final String? deliverySessionId;
   final String? customerName;
   final String? customerPhone;
   final String? customerAddress;
+  final double? customerLatitude;
+  final double? customerLongitude;
   final String? paymentTransactionId;
   final String? notes;
 
@@ -62,11 +67,16 @@ class Order {
     required this.paymentMethod,
     this.status = OrderStatus.pending,
     required this.createdAt,
+    this.confirmedAt,
     this.dispatchedAt,
     this.deliveredAt,
+    this.expectedDeliveryAt,
+    this.deliverySessionId,
     this.customerName,
     this.customerPhone,
     this.customerAddress,
+    this.customerLatitude,
+    this.customerLongitude,
     this.paymentTransactionId,
     this.notes,
   });
@@ -79,11 +89,16 @@ class Order {
       'paymentMethod': paymentMethod.toString().split('.').last,
       'status': status.toString().split('.').last,
       'createdAt': Timestamp.fromDate(createdAt),
+      'confirmedAt': confirmedAt != null ? Timestamp.fromDate(confirmedAt!) : null,
       'dispatchedAt': dispatchedAt != null ? Timestamp.fromDate(dispatchedAt!) : null,
       'deliveredAt': deliveredAt != null ? Timestamp.fromDate(deliveredAt!) : null,
+      'expectedDeliveryAt': expectedDeliveryAt != null ? Timestamp.fromDate(expectedDeliveryAt!) : null,
+      'deliverySessionId': deliverySessionId,
       'customerName': customerName,
       'customerPhone': customerPhone,
       'customerAddress': customerAddress,
+      'customerLatitude': customerLatitude,
+      'customerLongitude': customerLongitude,
       'paymentTransactionId': paymentTransactionId,
       'notes': notes,
     };
@@ -101,11 +116,16 @@ class Order {
       paymentMethod: data['paymentMethod'] == 'online' ? PaymentMethod.online : PaymentMethod.cashOnDelivery,
       status: _stringToOrderStatus(data['status'] as String? ?? 'pending'),
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      confirmedAt: (data['confirmedAt'] as Timestamp?)?.toDate(),
       dispatchedAt: (data['dispatchedAt'] as Timestamp?)?.toDate(),
       deliveredAt: (data['deliveredAt'] as Timestamp?)?.toDate(),
+      expectedDeliveryAt: (data['expectedDeliveryAt'] as Timestamp?)?.toDate(),
+      deliverySessionId: data['deliverySessionId'] as String?,
       customerName: data['customerName'] as String?,
       customerPhone: data['customerPhone'] as String?,
       customerAddress: data['customerAddress'] as String?,
+      customerLatitude: (data['customerLatitude'] as num?)?.toDouble(),
+      customerLongitude: (data['customerLongitude'] as num?)?.toDouble(),
       paymentTransactionId: data['paymentTransactionId'] as String?,
       notes: data['notes'] as String?,
     );
@@ -122,11 +142,16 @@ class Order {
       paymentMethod: data['paymentMethod'] == 'online' ? PaymentMethod.online : PaymentMethod.cashOnDelivery,
       status: _stringToOrderStatus(data['status'] as String? ?? 'pending'),
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      confirmedAt: (data['confirmedAt'] as Timestamp?)?.toDate(),
       dispatchedAt: (data['dispatchedAt'] as Timestamp?)?.toDate(),
       deliveredAt: (data['deliveredAt'] as Timestamp?)?.toDate(),
+      expectedDeliveryAt: (data['expectedDeliveryAt'] as Timestamp?)?.toDate(),
+      deliverySessionId: data['deliverySessionId'] as String?,
       customerName: data['customerName'] as String?,
       customerPhone: data['customerPhone'] as String?,
       customerAddress: data['customerAddress'] as String?,
+      customerLatitude: (data['customerLatitude'] as num?)?.toDouble(),
+      customerLongitude: (data['customerLongitude'] as num?)?.toDouble(),
       paymentTransactionId: data['paymentTransactionId'] as String?,
       notes: data['notes'] as String?,
     );

@@ -2,6 +2,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'cart_service.dart';
+import 'delivery_tracking_service.dart';
+import 'notification_service.dart';
 
 /// Simple Auth Service with role storage (staff or customer)
 class AuthService extends ChangeNotifier {
@@ -22,8 +24,10 @@ class AuthService extends ChangeNotifier {
     // Try to ensure user doc and load role; fall back safely if blocked
     await _ensureUserDoc();
     await _loadRole();
+    await NotificationService.instance.updateSession(userId: user?.uid, role: _role);
       } else {
         _role = null;
+        await NotificationService.instance.updateSession(userId: null, role: null);
       }
   _initializing = false;
       notifyListeners();
@@ -70,6 +74,7 @@ class AuthService extends ChangeNotifier {
       } catch (_) {/* ignore to avoid crash if rules not yet set */}
       _role = role;
       notifyListeners();
+      await NotificationService.instance.updateSession(userId: user?.uid, role: _role);
       return null;
     } on FirebaseAuthException catch (e) {
       return e.message;
@@ -94,8 +99,10 @@ class AuthService extends ChangeNotifier {
   }
 
   Future<void> logout() async {
+    await DeliveryTrackingService.instance.stopTracking();
     await _auth.signOut();
   await CartService().setActiveUser(null);
+  await NotificationService.instance.updateSession(userId: null, role: null);
   }
 
   Future<String?> sendPasswordReset(String email) async {

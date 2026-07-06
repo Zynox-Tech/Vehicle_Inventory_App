@@ -1,9 +1,11 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
 import 'services/auth_service.dart';
 import 'services/supabase_service.dart';
 import 'services/paymob_service.dart';
+import 'services/notification_service.dart';
 import 'theme/app_theme.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/inventory/parts_list_screen.dart';
@@ -25,7 +27,6 @@ class MainApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Prepare async initialization (Firebase + Supabase) with proper env handling.
     final initFuture = _initializeServices();
     return MultiProvider(
       providers: [
@@ -37,11 +38,10 @@ class MainApp extends StatelessWidget {
           if (snap.connectionState == ConnectionState.waiting) {
             return const MaterialApp(
               debugShowCheckedModeBanner: false,
-              home: Scaffold(body: Center(child: CircularProgressIndicator())),
+              home: SplashScreen(),
             );
           }
           if (snap.hasError) {
-            // Show an actionable error screen instead of a blank screen/crash.
             return MaterialApp(
               debugShowCheckedModeBanner: false,
               theme: AppTheme.darkTheme,
@@ -50,14 +50,13 @@ class MainApp extends StatelessWidget {
           }
           return Consumer<AuthService>(
             builder: (context, auth, _) {
+              final showSplash = auth.initializing;
               return MaterialApp(
                 debugShowCheckedModeBanner: false,
                 title: 'Vehicle Parts Inventory',
                 theme: AppTheme.darkTheme,
-                home: auth.initializing
-                    ? const Scaffold(
-                        body: Center(child: CircularProgressIndicator()),
-                      )
+                home: showSplash
+                    ? const SplashScreen()
                     : (auth.isLoggedIn ? const HomeRouter() : const LoginScreen()),
                 routes: {
                   PartsListScreen.routeName: (_) => const PartsListScreen(),
@@ -93,6 +92,8 @@ class MainApp extends StatelessWidget {
 /// Initialize Firebase, Supabase, and Paymob with proper env variable names.
 Future<void> _initializeServices() async {
   await Firebase.initializeApp(); // Ensure platform configs (google-services/GoogleService-Info.plist) exist.
+
+  await NotificationService.instance.initialize();
   // Hardcoded Supabase configuration provided by user.
   const supabaseUrl = 'https://djzxpkuyaoohlcfeqxhe.supabase.co';
   const supabaseAnonKey = 'sb_publishable_Vap_7U7vKeWy4E_YIcWm4A_NWLiokJ5';
@@ -117,6 +118,28 @@ Future<void> _initializeServices() async {
   // 3. Replace the values above with your real credentials
   // 4. DO NOT commit real credentials to public repos - use env variables
   // ============================================================
+}
+
+class SplashScreen extends StatelessWidget {
+  const SplashScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Image.asset(
+            'assets/splash.png',
+            fit: BoxFit.contain,
+            width: 220,
+            height: 220,
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _InitErrorScreen extends StatelessWidget {
