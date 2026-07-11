@@ -1,89 +1,454 @@
-# Real-Time Vehicle Parts Inventory & Billing (Flutter + Firebase)
+# Real-Time Vehicle Parts Inventory & Billing System
 
-Dark theme (black/orange/white) app for vehicle parts management.
+A modern Flutter and Firebase-based vehicle parts management application designed to digitize inventory operations, billing, customer management, and delivery tracking.
 
-Features: Authentication (staff & customer), inventory CRUD, search/filtering, low-stock alerts, QR scanning & billing, delivery status tracking, and live map-based delivery tracking.
+The application provides a complete solution for vehicle parts businesses with features including inventory management, QR-based billing, real-time order tracking, and live delivery monitoring.
 
-## 1. Prerequisites
-* Flutter SDK 3.x
-* Android Studio emulator or real device
-* Firebase project
+---
 
-## 2. Firebase Setup (Android)
-1. Create project at https://console.firebase.google.com.
-2. Add Android app with package name: `com.example.parts`.
-3. Download `google-services.json` and copy to `android/app/`.
-4. Enable Email/Password in Authentication.
-5. Create Firestore (Production mode).
-6. Enable Google Maps SDK for Android in Google Cloud Console and replace the placeholder in `android/app/src/main/res/values/google_maps_api.xml`.
-7. (Optional) Add initial collections: `users`, `parts`, `sales`, `orders`, `delivery_sessions`.
+# Developed By
 
-Security rules (basic dev example):
+## Zynox Tech
+
+Website: https://zynoxtech.site  
+Email: hello@zynoxtech.site  
+Location: Abbottabad, Pakistan
+
+Zynox Tech is a software development company specializing in:
+
+- Mobile Application Development
+- Web Application Development
+- Enterprise Software Solutions
+- Artificial Intelligence Solutions
+- Business Automation Systems
+- Custom Digital Products
+
+We build scalable and reliable technology solutions that help businesses improve efficiency and transform their operations digitally.
+
+For software development services and technology partnerships:
+
+Website: https://zynoxtech.site  
+Email: hello@zynoxtech.site
+
+---
+
+# Project Overview
+
+Real-Time Vehicle Parts Inventory & Billing is a complete mobile application built for vehicle parts businesses.
+
+The system helps manage:
+
+- Vehicle parts inventory
+- Customer orders
+- Billing operations
+- Staff activities
+- Delivery tracking
+- Stock monitoring
+
+The application uses Firebase cloud services to provide real-time data synchronization and secure user management.
+
+---
+
+# Features
+
+## Authentication System
+
+- Secure user registration and login
+- Staff and customer roles
+- Firebase Authentication integration
+- Role-based application access
+
+---
+
+## Inventory Management
+
+- Add, update, and delete vehicle parts
+- Manage stock quantities
+- Search and filter products
+- Low-stock alerts
+- Real-time inventory updates
+
+---
+
+## Billing System
+
+- QR code-based part scanning
+- Cart management
+- Automatic billing calculation
+- Sales record management
+- Transaction history
+
+---
+
+## Delivery Tracking
+
+- Order status management
+- Live location tracking
+- Map-based delivery monitoring
+- Distance calculation
+- Estimated delivery time
+
+---
+
+## Customer Features
+
+- Browse available parts
+- Place orders
+- Track deliveries
+- View order history
+
+---
+
+## Staff Features
+
+- Manage inventory
+- Process customer orders
+- Update delivery status
+- Monitor sales activities
+
+---
+
+# Technology Stack
+
+## Mobile Application
+
+- Flutter
+- Dart
+
+## Backend Services
+
+- Firebase Authentication
+- Firebase Firestore
+- Firebase Cloud Services
+
+## Additional Integrations
+
+- Google Maps API
+- QR Code Scanner
+- Real-time GPS Tracking
+
+---
+
+# Getting Started
+
+## Requirements
+
+Before running this project, install:
+
+- Flutter SDK 3.x
+- Android Studio
+- Android Emulator or Physical Device
+- Firebase Account
+
+Verify Flutter installation:
+
+```bash
+flutter doctor
 ```
-rules_version = '2';
-service cloud.firestore {
-	match /databases/{database}/documents {
-		match /users/{uid} {
-			allow read, write: if request.auth != null && request.auth.uid == uid;
-		}
-		match /parts/{id} {
-			allow read: if true; // Everyone can view parts
-			allow write: if request.auth != null; // Require login for writes
-		}
-		match /sales/{id} {
-			allow read, write: if request.auth != null;
-		}
-		match /orders/{id} {
-			allow read, write: if request.auth != null;
-		}
-		match /delivery_sessions/{orderId} {
-			allow read, write: if request.auth != null;
-		}
-	}
-}
+
+---
+
+# Firebase Setup
+
+## 1. Create Firebase Project
+
+Create a project from:
+
+```
+https://console.firebase.google.com
 ```
 
-## 3. Install Packages
-```powershell
+---
+
+## 2. Configure Android Application
+
+Add Android application with package name:
+
+```
+com.example.parts
+```
+
+Download:
+
+```
+google-services.json
+```
+
+and place it inside:
+
+```
+android/app/
+```
+
+---
+
+## 3. Enable Firebase Services
+
+Enable:
+
+- Firebase Authentication
+- Email/Password Login
+- Cloud Firestore Database
+
+---
+
+## 4. Configure Google Maps
+
+Enable Google Maps SDK for Android.
+
+Update:
+
+```
+android/app/src/main/res/values/google_maps_api.xml
+```
+
+with your API key.
+
+---
+
+# Installation
+
+Clone the repository:
+
+```bash
+git clone https://github.com/yourusername/Vehicle_Inventory_App.git
+```
+
+Navigate into the project:
+
+```bash
+cd Vehicle_Inventory_App
+```
+
+Install dependencies:
+
+```bash
 flutter pub get
 ```
 
-## 4. Run
-```powershell
+---
+
+# Run Application
+
+Start the application:
+
+```bash
 flutter run
 ```
 
-## 5. Usage Flow
-1. Register (choose role: customer or staff).
-2. Staff: Add parts, edit quantities.
-3. Anyone: View parts list; low stock shows a red warning icon.
-4. Billing: Scan QR (uses part document ID); confirm cart & checkout.
-5. Reports: View sales totals (today/week/month).
-6. Delivery: Staff confirms an order, starts delivery, and shares live GPS while the app is open.
-7. Customer: Open My Orders or Track Delivery to see live staff movement, distance, ETA, and status updates.
+The application will run on:
 
-## 6. Part Images
-Add `imageUrl` with HTTPS link in part doc. Future improvement: integrate Firebase Storage upload (create a storage bucket, use `firebase_storage` plugin, upload file, store download URL).
+- Android Emulator
+- Physical Android Device
 
-## 7. Firestore Document Shapes
+---
+
+# Application Workflow
+
+## Customer Flow
+
+1. Register account
+2. Browse available vehicle parts
+3. Place order
+4. Track delivery status
+5. Monitor live delivery location
+
+---
+
+## Staff Flow
+
+1. Login as staff
+2. Add and manage inventory
+3. Process customer orders
+4. Generate bills
+5. Start and manage deliveries
+
+---
+
+# Project Structure
+
 ```
-parts/{partId} => { name, category, price, quantity, lowStockThreshold, imageUrl?, qrData }
-sales/{saleId} => { partIds:[], total, createdAt }
-orders/{orderId} => { status, createdAt, confirmedAt?, dispatchedAt?, deliveredAt?, deliverySessionId?, items? }
-delivery_sessions/{orderId} => { orderId, customerId, staffId, staffLabel, customerAddress, destinationLatitude, destinationLongitude, staffLatitude, staffLongitude, distanceMeters, etaMinutes, isActive, status, startedAt, lastUpdatedAt, completedAt? }
-users/{uid} => { email, role, createdAt }
+Vehicle_Inventory_App/
+
+├── lib/
+
+│   ├── screens/
+│   ├── widgets/
+│   ├── models/
+│   ├── services/
+│   ├── firebase/
+│   └── main.dart
+
+├── android/
+
+├── ios/
+
+├── assets/
+
+├── pubspec.yaml
+
+└── README.md
 ```
 
-## 8. Future Enhancements
-* Firebase Storage for images
-* Push notifications for low stock
-* Role-based admin dashboard
-* Offline caching
-* AI-based stock prediction
-* Background delivery tracking if you later add a backend or foreground Android service
+---
 
-## 9. Troubleshooting
-If Firebase init fails: ensure `google-services.json` exists and run `flutter clean; flutter pub get`.
+# Firestore Database Structure
 
-## 10. License
-Academic / FYP usage.
+## Users
+
+```
+users/{uid}
+
+{
+ email,
+ role,
+ createdAt
+}
+```
+
+---
+
+## Parts
+
+```
+parts/{partId}
+
+{
+ name,
+ category,
+ price,
+ quantity,
+ lowStockThreshold,
+ imageUrl,
+ qrData
+}
+```
+
+---
+
+## Sales
+
+```
+sales/{saleId}
+
+{
+ partIds,
+ total,
+ createdAt
+}
+```
+
+---
+
+## Orders
+
+```
+orders/{orderId}
+
+{
+ status,
+ createdAt,
+ confirmedAt,
+ dispatchedAt,
+ deliveredAt,
+ items
+}
+```
+
+---
+
+## Delivery Sessions
+
+```
+delivery_sessions/{orderId}
+
+{
+ orderId,
+ customerId,
+ staffId,
+ staffLocation,
+ destinationLocation,
+ distance,
+ eta,
+ status
+}
+```
+
+---
+
+# Future Improvements
+
+Planned improvements:
+
+- Firebase Storage for product images
+- Push notifications
+- Advanced admin dashboard
+- Offline mode support
+- AI-based inventory forecasting
+- Automated stock recommendations
+- Background location tracking
+
+---
+
+# Troubleshooting
+
+## Firebase Connection Issues
+
+Check:
+
+- `google-services.json` exists
+- Firebase project configuration
+- Correct package name
+
+Run:
+
+```bash
+flutter clean
+flutter pub get
+```
+
+---
+
+## Build Issues
+
+Update Flutter packages:
+
+```bash
+flutter pub upgrade
+```
+
+---
+
+# License
+
+This project is developed for educational and commercial software demonstration purposes.
+
+---
+
+# About Zynox Tech
+
+Zynox Tech develops modern digital solutions for businesses and organizations.
+
+Our services include:
+
+- Mobile Applications
+- Web Applications
+- Enterprise Software
+- AI Solutions
+- Custom Business Automation
+
+Website:
+
+https://zynoxtech.site
+
+Email:
+
+hello@zynoxtech.site
+
+Location:
+
+Abbottabad, Pakistan
+
+---
+
+Developed by **Zynox Tech**
